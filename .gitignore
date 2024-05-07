@@ -1,3 +1,27 @@
+# Byte-compiled / optimized / DLL files
+
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Sphinx documentation
+docs/_build/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# MacOS
+.DS_Store
+
+.devcontainer/
+
+01*.ipynb
+functions/inference/
+functions/models/
+functions/plotting.py
+functions/np_plotting.py
+functions/inference.py
+*.dockerfile
 
 Notes.docx
 datasets/shorelines/shorelines_target_hidden.csv
