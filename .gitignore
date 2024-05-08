@@ -16,11 +16,10 @@ docs/_build/
 .devcontainer/
 
 01*.ipynb
-functions/inference/
-functions/models/
+# # functions/inference/
+# functions/models/
 functions/plotting.py
-functions/np_plotting.py
-functions/inference.py
+# functions/np_plotting.py
 *.dockerfile
 
 Notes.docx
