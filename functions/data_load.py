@@ -50,11 +50,11 @@ def load_modelling_data(basedir='.'):
 
     ################################################################################
     # Read shoreline data
-    df_gt = pd.read_csv(os.path.join(basedir,fp, 'shorelines', fn_gt), index_col='Datetime', parse_dates=True, date_format='%d/%m/%Y')
+    df_gt = pd.read_csv(os.path.join(basedir,fp, 'shorelines', fn_gt), index_col='Datetime', parse_dates=True, date_format='%Y-%m-%d')
     # df_gt.index = pd.to_datetime(df_gt.index)
     print('df_gt: Loaded {} (dates,transects) groundtruth shoreline positions...{} to {}'.format(df_gt.shape, df_gt.index.min().strftime('%Y-%m-%d'), df_gt.index.max().strftime('%Y-%m-%d')))
 
-    df_targ_short = pd.read_csv(os.path.join(basedir,fp, 'shorelines', fn_targ_short), index_col='Datetime', parse_dates=True, date_format='%Y-%m-%d %H:%M:%S')
+    df_targ_short = pd.read_csv(os.path.join(basedir,fp, 'shorelines', fn_targ_short), index_col='Datetime', parse_dates=True, date_format='%Y-%m-%d')
     # df_targ_short.index = pd.to_datetime(df_targ_short.index)
     print('df_targ_short: Loaded {} (dates,transects) short-term target shoreline positions...{} to {}'.format(df_targ_short.shape, df_targ_short.index.min().strftime('%Y-%m-%d'), df_targ_short.index.max().strftime('%Y-%m-%d')))
 
@@ -63,7 +63,7 @@ def load_modelling_data(basedir='.'):
     # df_targ_medium.index = pd.to_datetime(df_targ_medium.index)
     print('df_targ_medium: Loaded {} (dates,transects) medium-term target shoreline positions...{} to {}'.format(df_targ_medium.shape, df_targ_medium.index.min().strftime('%Y-%m-%d'), df_targ_medium.index.max().strftime('%Y-%m-%d')))
 
-    df_obs = pd.read_csv(os.path.join(basedir,fp, 'shorelines', fn_obs), index_col='Datetime', parse_dates=True, date_format='%Y-%m-%d %H:%M:%S')
+    df_obs = pd.read_csv(os.path.join(basedir,fp, 'shorelines', fn_obs), index_col='Datetime', parse_dates=True, date_format='%Y-%m-%d')
     # df_obs.index = pd.to_datetime(df_obs.index)
     print('df_obs: Loaded {} (dates,transects) observed shoreline positions...{} to {}'.format(df_obs.shape, df_obs.index.min().strftime('%Y-%m-%d'), df_obs.index.max().strftime('%Y-%m-%d')))
     
@@ -88,10 +88,10 @@ def load_modelling_data(basedir='.'):
     ################################################################################
     # Read SLR data
     df_SLR_obs = pd.read_csv(
-        os.path.join(basedir,fp, 'sealevel', 'SLR_obs.csv'),
+        os.path.join(basedir,fp, 'sealevel', 'sealevel_obs.csv'),
         index_col = 'Year', parse_dates=True, date_format='%Y')
     df_SLR_proj = pd.read_csv(
-        os.path.join(basedir,fp, 'sealevel', 'SLR_proj.csv'),
+        os.path.join(basedir,fp, 'sealevel', 'sealevel_proj.csv'),
         index_col = 'Year', parse_dates=True, date_format='%Y')
 
     print('df_SLR_obs: Loaded {} (years, {}) observed sea level rise data...{} to {}'.format(df_SLR_obs.shape, df_SLR_obs.columns.tolist(), df_SLR_obs.index.min().strftime('%Y'), df_SLR_obs.index.max().strftime('%Y')))
