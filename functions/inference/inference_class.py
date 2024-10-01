@@ -205,7 +205,7 @@ class NumPyroSampler():
     ############################################################
     ############################################################
         
-    def run_sampler_SVI(self,rng_key,X,class_var,Y,num_samples,num_warmup,num_chains,max_tree,step_size=0.01):
+    def run_sampler_SVI(self,rng_key,num_samples,num_chains,step_size=0.01,extract_vars=None):
         '''
         Trains the model with the given input and output data.
 
@@ -226,8 +226,8 @@ class NumPyroSampler():
 
         guide = AutoNormal(self.model)
         svi = SVI(
-            model=self.model, guide=guide, optim=optimizer, loss=elbo, 
-            X=self.jnp_X, add=self.jnp_add, Y=self.jnp_Y
+            model=self.model, guide=guide, optim=optimizer, loss=elbo,  
+            X = self.train_X, add = self.train_add, Y = self.train_Y
         )
 
         svi_result = svi.run(rng_key, num_samples)
@@ -242,14 +242,37 @@ class NumPyroSampler():
             params=self.params,
             num_samples=num_samples
         )
-        samples = predictive(rng, X=self.jnp_X, add=self.jnp_add, Y=None)
+        samples = predictive(rng,
+            X = self.train_X, add = self.train_add, Y = None
+        )
+        posterior_predictive = Predictive(
+            self.model, posterior_samples=samples, 
+            return_sites=extract_vars
+        )(
+            rng, 
+            X = self.train_X, add = self.train_add, Y = None
+        )
 
         self.samples = samples
 
         self.arviz = az.from_dict(
             {k: jnp.expand_dims(v, 0) for k, v in samples.items()},
-            posterior_predictive={k: jnp.expand_dims(v, 0) for k, v in samples.items()},
+            posterior_predictive={k: jnp.expand_dims(v, 0) for k, v in posterior_predictive.items()},
         )
+
+        mean_mu_train, hpdi_mu_train, hpdi_sim_train = calc_mean_hpdi(
+            self.arviz, ci=self.ci, y_scaler=None, mu_var='mu', sim_var='obs'
+        )
+    
+        results = {
+            'mean_mu_train': mean_mu_train,
+            'hpdi_mu_train': hpdi_mu_train,
+            'hpdi_sim_train': hpdi_sim_train,
+            # 'mean_mu_test': mean_mu_test,
+            # 'hpdi_mu_test': hpdi_mu_test,
+            # 'hpdi_sim_test': hpdi_sim_test
+        }
+        self.results = results
 
 
     ############################################################

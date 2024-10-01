@@ -4,6 +4,8 @@ import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 
+from functions.gp_model import GPModel
+
 ################################################################################
 ################################################################################
 # Models
@@ -218,41 +220,52 @@ def build_seasonal_linear_model():
         Dir_mean = X[:,:,4]
         month = X[:,:,5].astype(int)
 
+        # not enough sites and too disparate to represent this way
+        # ### Spatial covariance
+        # hyp_length = numpyro.sample("hyp_length", dist.Gamma(1,1))
+        # hyp_rho = numpyro.sample("hyp_rho", dist.Gamma(1,1))
+        # hyp_noise =  1e-6 #numpyro.sample("hyp_noise", dist.Gamma(1.5,20))
+
+        # X_gp = jnp.cumsum(jnp.ones((tran_num,1)),axis=0)
+        # # get the covariance matrix - scale to sigma
+        # gp_lk = GPModel()
+        # gp_lk.hyp = (hyp_length, hyp_rho, hyp_noise)
+        # # Kxx = gp_lk.covariance_matrix(X_gp)
+        # gp_lk.X = X_gp
+        # Kxx = gp_lk.covariance_matrix(X_gp)
+        # Lxx = jnp.linalg.cholesky(Kxx)
+        # beta_01 = numpyro.sample(
+        #     'beta_01',
+        #     dist.Normal(0,1).expand([tran_num])
+        # )
+        # beta_0 = alpha_0 + Lxx @ beta_01
+        # numpyro.deterministic('beta_0',beta_0)
+
+        # beta_month1 = numpyro.sample(
+        #     'beta_month1',
+        #     dist.Normal(0,1).expand([tran_num])
+        # )
+        # beta_month = alpha_month + Lxx @ beta_month1
+        # numpyro.deterministic('beta_month',beta_month)
+
         # Hyperpriors for our multi-level model
         # sample the beta params
         tau = 2.0
         # AR1 term
-        alpha_Hsig_0 = numpyro.sample("alpha_Hsig_0", dist.Normal(0, tau))
-        alpha_Hsig_max = numpyro.sample("alpha_Hsig_max", dist.Normal(0, tau))
-        alpha_Hsig_dir = numpyro.sample("alpha_Hsig_dir", dist.Normal(0, tau))
-        alpha_Tp_0 = numpyro.sample("alpha_Tp_0", dist.Normal(0, tau))
         alpha_0 = numpyro.sample("alpha_0", dist.Normal(0, tau))
         with numpyro.plate("months", n_months, dim=-2):
             alpha_month = numpyro.sample("alpha_month", dist.Normal(0, tau))
 
-        tau_Hsig_0 = numpyro.sample("tau_Hsig_0", dist.Exponential(1))
-        tau_Hsig_max = numpyro.sample("tau_Hsig_max", dist.Exponential(1))
-        tau_Hsig_dir = numpyro.sample("tau_Hsig_dir", dist.Exponential(1))
-        tau_Tp_0 = numpyro.sample("tau_Tp_0", dist.Exponential(1))
         tau_0 = numpyro.sample("tau_0", dist.Exponential(1))
         tau_month = numpyro.sample("tau_month", dist.Exponential(1))
 
-
         with numpyro.plate("transects", tran_num, dim=-1):
-            beta_Hsig_0 = numpyro.sample("beta_Hsig_0", dist.Normal(alpha_Hsig_0, tau_Hsig_0))
-            beta_Hsig_max = numpyro.sample("beta_Hsig_max", dist.Normal(alpha_Hsig_max, tau_Hsig_max))
-            beta_Hsig_dir = numpyro.sample("beta_Hsig_dir", dist.Normal(alpha_Hsig_dir, tau_Hsig_dir))
-            beta_Tp_0 = numpyro.sample("beta_Tp_0", dist.Normal(alpha_Tp_0, tau_Tp_0))
             beta_0 = numpyro.sample("beta_0", dist.Normal(alpha_0, tau_0))
             beta_month = numpyro.sample("beta_month", dist.Normal(alpha_month, tau_month))    
 
         sigma = numpyro.sample("sigma_meas", dist.Exponential(1))
 
         carry = {
-            'beta_Hsig_0': beta_Hsig_0,
-            'beta_Hsig_max': beta_Hsig_max,
-            'beta_Hsig_dir': beta_Hsig_dir,
-            'beta_Tp_0': beta_Tp_0,
             'beta_0': beta_0,
             'beta_month': beta_month,
             'shl_prev': add
