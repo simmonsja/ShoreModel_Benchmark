@@ -1,5 +1,70 @@
 import numpy as np
+import pandas as pd
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.preprocessing import StandardScaler
+
+import jax.numpy as jnp
+
+################################################################################
+################################################################################
+
+def transform_data_to_jax(data, x_vars, y_vars, transect_var, standardise=True, scaler_x=None, scaler_y=None):
+    # ensure data are sorted by transect then date
+    data = data.sort_values([transect_var, 'date'])
+    # Transform data to jax format
+    if standardise:
+        if scaler_x is None:
+            scaler_x = StandardScaler()
+            scaler_x.fit(data[x_vars])
+        if scaler_y is None:
+            scaler_y = StandardScaler()
+            scaler_y.fit(data[y_vars])
+        standardised_data = data.copy()
+        standardised_data[x_vars] = scaler_x.transform(data[x_vars])
+        if 'month' in x_vars:
+            standardised_data.loc[:,'month'] = data.loc[:,'month'].values
+        standardised_data[y_vars] = scaler_y.transform(data[y_vars])
+    else:
+        standardised_data = data.copy()
+    # standardised_data = tabular_data['df_obs'].copy()
+    # bend it into a 3D frame
+    print('Unique transects: {}'.format(standardised_data[transect_var].unique()))
+    jnp_X = jnp.array(np.stack(
+        [
+            standardised_data.query('Transect == @trans_id')[x_vars].values for trans_id in standardised_data[transect_var].unique()
+        ], axis=1
+    ))
+
+    df_Y = pd.pivot_table(standardised_data, index='date', columns='Transect', values=y_vars[0], dropna=False)
+
+    jnp_Y = np.stack(
+        [
+            standardised_data.query('Transect == @trans_id')[y_vars].values for trans_id in standardised_data[transect_var].unique()
+        ],
+        axis=1
+    ).squeeze()
+
+    # # fill nan with mean value
+    # jnp_Y = np.where(np.isnan(jnp_Y), np.nanmean(jnp_Y), jnp_Y)
+
+
+    # fill nan with linear interpolated value
+    for i in range(jnp_Y.shape[1]):
+        jnp_Y[:,i] = np.where(np.isnan(jnp_Y[:,i]), np.interp(np.arange(jnp_Y.shape[0]), np.arange(jnp_Y.shape[0])[~np.isnan(jnp_Y[:,i])], jnp_Y[:,i][~np.isnan(jnp_Y[:,i])]), jnp_Y[:,i])
+
+    jnp_Y = jnp.array(jnp_Y)
+
+    # store jnp_T as an int by category
+    jnp_T = jnp.array(standardised_data[transect_var].astype('category').cat.codes.values)
+
+    print('jnp_X.shape: {}, isnan: {}'.format(jnp_X.shape, np.isnan(jnp_X).sum()))
+    print('jnp_Y.shape: {}, isnan: {}'.format(jnp_Y.shape, np.isnan(jnp_Y).sum()))
+    print('jnp_T.shape: {}, isnan: {}'.format(jnp_T.shape, np.isnan(jnp_T).sum()))
+    return jnp_X, jnp_Y, jnp_T, df_Y, {'scaler_x':scaler_x, 'scaler_y':scaler_y}
+
+################################################################################
+################################################################################
+
 
 ################################################################################
 ################################################################################

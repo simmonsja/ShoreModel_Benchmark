@@ -19,8 +19,7 @@ def build_base_linear_model(n_variables, yscale_mean, yscale_scale, addscale_mea
 
         # calc dval
         dval = orig_shl * tcarry['beta_ar1'] + jnp.sum(tcarry['beta'] * tparams['x']) + tcarry['beta_0']
-
-        
+ 
         # jax.debug.print('orig shl: {}',orig_shl)
         # jax.debug.print('orig shl T: {}',(orig_shl * addscale_scale) + addscale_mean)
         # jax.debug.print('dval: {}',dval)
@@ -93,10 +92,12 @@ def build_shladj_linear_model():
         # use actual or predicted shoreline depending on test
         orig_shl = tcarry['shl_prev']
 
-        Hsig_beta = tcarry['beta_Hsig_0'] + tparams['Hsig_max'] * tcarry['beta_Hsig_max'] + tparams['Dir_mean'] * tcarry['beta_Hsig_dir']
+        Hsig_beta = tcarry['beta_Hsig_0'] + tparams['Hsig_max'] * tcarry['beta_Hsig_max'] + tcarry['beta_Tp_0'] * tparams['Tp_mean']
+
+        # + tparams['Dir_mean'] * tcarry['beta_Hsig_dir']
 
         # calc dval
-        dval = Hsig_beta * tparams['Hsig_mean'] + tcarry['beta_Tp_0'] * tparams['Tp_mean'] + tcarry['beta_0'] + jnp.take_along_axis(tcarry['beta_month'],tparams['month'][None,:],axis=0).squeeze()
+        dval = Hsig_beta * tparams['Hsig_mean'] + tcarry['beta_0'] + jnp.take_along_axis(tcarry['beta_month'],tparams['month'][None,:],axis=0).squeeze()
 
         # carry shl
         tcarry['shl_prev'] = orig_shl + dval
@@ -133,6 +134,7 @@ def build_shladj_linear_model():
         alpha_0 = numpyro.sample("alpha_0", dist.Normal(0, tau))
         with numpyro.plate("months", n_months, dim=-2):
             alpha_month = numpyro.sample("alpha_month", dist.Normal(0, tau))
+        alpha_ar1 = numpyro.sample("alpha_ar1", dist.Normal(0, tau))
 
         tau_Hsig_0 = numpyro.sample("tau_Hsig_0", dist.Exponential(1))
         tau_Hsig_max = numpyro.sample("tau_Hsig_max", dist.Exponential(1))
@@ -140,7 +142,7 @@ def build_shladj_linear_model():
         tau_Tp_0 = numpyro.sample("tau_Tp_0", dist.Exponential(1))
         tau_0 = numpyro.sample("tau_0", dist.Exponential(1))
         tau_month = numpyro.sample("tau_month", dist.Exponential(1))
-
+        tau_ar1 = numpyro.sample("tau_ar1", dist.Exponential(1))
 
         with numpyro.plate("transects", tran_num, dim=-1):
             beta_Hsig_0 = numpyro.sample("beta_Hsig_0", dist.Normal(alpha_Hsig_0, tau_Hsig_0))
@@ -148,7 +150,8 @@ def build_shladj_linear_model():
             beta_Hsig_dir = numpyro.sample("beta_Hsig_dir", dist.Normal(alpha_Hsig_dir, tau_Hsig_dir))
             beta_Tp_0 = numpyro.sample("beta_Tp_0", dist.Normal(alpha_Tp_0, tau_Tp_0))
             beta_0 = numpyro.sample("beta_0", dist.Normal(alpha_0, tau_0))
-            beta_month = numpyro.sample("beta_month", dist.Normal(alpha_month, tau_month))    
+            beta_month = numpyro.sample("beta_month", dist.Normal(alpha_month, tau_month))
+            beta_ar1 = numpyro.sample("beta_ar1", dist.Normal(alpha_ar1, tau_ar1))
 
         sigma = numpyro.sample("sigma_meas", dist.Exponential(1))
 
@@ -159,6 +162,7 @@ def build_shladj_linear_model():
             'beta_Tp_0': beta_Tp_0,
             'beta_0': beta_0,
             'beta_month': beta_month,
+            'beta_ar1': beta_ar1,
             'shl_prev': add
         }
         scan_covariates = {
