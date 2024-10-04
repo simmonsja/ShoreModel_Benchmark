@@ -53,14 +53,20 @@ def transform_data_to_jax(data, x_vars, y_vars, transect_var, standardise=True, 
         jnp_Y[:,i] = np.where(np.isnan(jnp_Y[:,i]), np.interp(np.arange(jnp_Y.shape[0]), np.arange(jnp_Y.shape[0])[~np.isnan(jnp_Y[:,i])], jnp_Y[:,i][~np.isnan(jnp_Y[:,i])]), jnp_Y[:,i])
 
     jnp_Y = jnp.array(jnp_Y)
+    jnp_Ym1 = jnp_Y[:-1,:]
 
     # store jnp_T as an int by category
     jnp_T = jnp.array(standardised_data[transect_var].astype('category').cat.codes.values)
 
+    jnp_X = jnp_X[1:,:]
+    jnp_Y = jnp_Y[1:,:]
+    df_Y = df_Y.iloc[1:,:]
+
     print('jnp_X.shape: {}, isnan: {}'.format(jnp_X.shape, np.isnan(jnp_X).sum()))
     print('jnp_Y.shape: {}, isnan: {}'.format(jnp_Y.shape, np.isnan(jnp_Y).sum()))
     print('jnp_T.shape: {}, isnan: {}'.format(jnp_T.shape, np.isnan(jnp_T).sum()))
-    return jnp_X, jnp_Y, jnp_T, df_Y, {'scaler_x':scaler_x, 'scaler_y':scaler_y}
+    print('jnp_Ym1.shape: {}, isnan: {}'.format(jnp_Ym1.shape, np.isnan(jnp_Ym1).sum()))
+    return jnp_X, jnp_Y, jnp_Ym1, df_Y, {'scaler_x':scaler_x, 'scaler_y':scaler_y}
 
 ################################################################################
 ################################################################################
