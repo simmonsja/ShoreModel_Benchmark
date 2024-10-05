@@ -89,7 +89,7 @@ class NumPyroSampler():
     ############################################################
     ############################################################
 
-    def model_predict(self, rng_key, X, class_var=None, num_samples=1000, prior=True):
+    def model_predict(self, rng_key, test_X, test_add):
         '''
         Predicts the output for the given input data.
 
@@ -104,20 +104,21 @@ class NumPyroSampler():
         '''
 
         rng, _ = jax.random.split(rng_key)
-        if prior:
-            samples = Predictive(
-                self.model, num_samples=num_samples, return_sites=['mu']
-            )(
-                rng, X=jnp.array(X), Y=None
-            )
-        else:
-            samples = Predictive(
-                self.model, num_samples=num_samples, return_sites=['mu'],
-                posterior_samples=self.samples
-            )(
-                rng, X=jnp.array(X), Y=None,
-            ) 
-        return samples['mu'].squeeze().T
+        posterior_predictive = Predictive(
+            self.model, return_sites=['mu', 'obs'],
+            posterior_samples=self.samples
+        )(
+            rng, X=test_X, add=test_add, test = True
+        ) 
+
+        predictive_arviz = az.from_dict(
+            posterior_predictive={k: jnp.expand_dims(v, 0) for k, v in posterior_predictive.items()}
+        )
+
+        mean_mu_test, hpdi_mu_test, hpdi_sim_test = calc_mean_hpdi(
+            predictive_arviz, ci=self.ci, y_scaler=None, mu_var='mu', sim_var='obs'
+        )
+        return mean_mu_test, hpdi_mu_test, hpdi_sim_test
     
     ############################################################
     ############################################################
@@ -152,7 +153,7 @@ class NumPyroSampler():
             Y = self.train_Y
         )
 
-        self.mcmc_obj = mcmc_obj
+        mcmc_obj = mcmc_obj
         # get the samples which will form our posterior
         samples = mcmc_obj.get_samples()
 
@@ -175,7 +176,7 @@ class NumPyroSampler():
         )
 
         # posterior_predictive = Predictive(
-        #     self.model, posterior_samples=samples, 
+        #     self.model, posterior_samples=self.samples, 
         #     return_sites=extract_vars
         # )(
         #     rng_key, 

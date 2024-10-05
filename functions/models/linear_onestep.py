@@ -92,10 +92,13 @@ def build_shladj_linear_model():
         # use actual or predicted shoreline depending on test
         orig_shl = tcarry['shl_prev']
 
-        Hsig_beta = tcarry['beta_Hsig_0'] + tparams['shl_prev_static'] * tcarry['beta_shl'] + tparams['Hsig_max'] * tcarry['beta_Hsig_max'] + tcarry['beta_Tp_0'] * tparams['Tp_mean'] + tparams['Dir_mean'] * tcarry['beta_Hsig_dir']
+        static_shl = jax.lax.cond(tcarry['test'],lambda car,par: car['shl_prev'],lambda car,par: par['shl_prev_static'], tcarry, tparams)
+
+        Hsig_beta = tcarry['beta_Hsig_0'] + static_shl * tcarry['beta_shl'] + tparams['Hsig_max'] * tcarry['beta_Hsig_max'] + tcarry['beta_Tp_0'] * tparams['Tp_mean'] + tparams['Dir_mean'] * tcarry['beta_Hsig_dir']
 
         # calc dval
-        dval = Hsig_beta * tparams['Hsig_mean'] + tcarry['beta_0'] + jnp.take_along_axis(tcarry['beta_month'],tparams['month'][None,:],axis=0).squeeze()
+        dval = Hsig_beta * tparams['Hsig_mean'] + jnp.take_along_axis(tcarry['beta_month'],tparams['month'][None,:],axis=0).squeeze()
+        #  + tcarry['beta_0'] don't need as unidentifiable with beta_month
 
         # carry shl
         tcarry['shl_prev'] = orig_shl * tcarry['beta_ar1'] + dval
@@ -150,7 +153,7 @@ def build_shladj_linear_model():
             beta_0 = numpyro.sample("beta_0", dist.Normal(alpha_0, tau_0))
             beta_month = numpyro.sample("beta_month", dist.Normal(alpha_month, tau_month))
             beta_ar1 = numpyro.sample("beta_ar1", dist.Uniform(0,1))
-            beta_shl = numpyro.sample("beta_shl", dist.Normal(0, tau_shl))
+            beta_shl = numpyro.sample("beta_shl", dist.Normal(alpha_shl, tau_shl))
 
         sigma = numpyro.sample("sigma_meas", dist.Exponential(1))
 
@@ -163,7 +166,8 @@ def build_shladj_linear_model():
             'beta_month': beta_month,
             'beta_ar1': beta_ar1,
             'beta_shl': beta_shl,
-            'shl_prev': add[0,:]
+            'shl_prev': add[0,:],
+            'test': test
         }
         scan_covariates = {
             'Hsig_mean': Hsig_mean,
