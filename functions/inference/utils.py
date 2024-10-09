@@ -8,7 +8,7 @@ import jax.numpy as jnp
 ################################################################################
 ################################################################################
 
-def transform_data_to_jax(data, x_vars, y_vars, transect_var, standardise=True, scaler_x=None, scaler_y=None):
+def transform_data_to_jax(data, x_vars, y_vars, transect_var, standardise=True, scaler_x=None, scaler_y=None, interp_y=True):
     # ensure data are sorted by transect then date
     data = data.sort_values([transect_var, 'date'])
     # Transform data to jax format
@@ -47,10 +47,10 @@ def transform_data_to_jax(data, x_vars, y_vars, transect_var, standardise=True, 
     # # fill nan with mean value
     # jnp_Y = np.where(np.isnan(jnp_Y), np.nanmean(jnp_Y), jnp_Y)
 
-
-    # fill nan with linear interpolated value
-    for i in range(jnp_Y.shape[1]):
-        jnp_Y[:,i] = np.where(np.isnan(jnp_Y[:,i]), np.interp(np.arange(jnp_Y.shape[0]), np.arange(jnp_Y.shape[0])[~np.isnan(jnp_Y[:,i])], jnp_Y[:,i][~np.isnan(jnp_Y[:,i])]), jnp_Y[:,i])
+    if interp_y:
+        # fill nan with linear interpolated value
+        for i in range(jnp_Y.shape[1]):
+            jnp_Y[:,i] = np.where(np.isnan(jnp_Y[:,i]), np.interp(np.arange(jnp_Y.shape[0]), np.arange(jnp_Y.shape[0])[~np.isnan(jnp_Y[:,i])], jnp_Y[:,i][~np.isnan(jnp_Y[:,i])]), jnp_Y[:,i])
 
     jnp_Y = jnp.array(jnp_Y)
     jnp_Ym1 = jnp_Y[:-1,:]
@@ -71,6 +71,30 @@ def transform_data_to_jax(data, x_vars, y_vars, transect_var, standardise=True, 
 ################################################################################
 ################################################################################
 
+def prepare_resample_monthly_data(data):
+    # split per Transect then average to monthly values with mean and peak for Hs and Tp then recombine into a reasonable dataframe
+    resampled_data = data.copy()
+    resampled_data = pd.concat(
+        [
+            resampled_data.query('Transect == @trans_id').drop(columns=['Transect']).set_index('date').resample('MS').agg({'Hs':['mean','max'],'Tp':['mean','max'],'Dir':['mean'],'shoreline':['mean']}).reset_index().assign(Transect=trans_id) for trans_id in resampled_data['Transect'].unique()
+        ], axis=0
+    )
+    # combine the column names to make one level
+    resampled_data.columns = [
+        '_'.join(col).strip() if '' != col[1] else col[0] for col in resampled_data.columns.values]
+    resampled_data = resampled_data.rename(columns={'shoreline_mean':'shoreline'})
+    # now add month predictor
+    resampled_data = resampled_data.assign(month=resampled_data['date'].dt.month-1)
+    resampled_data = resampled_data.reset_index(drop=True)
+
+    # log Hs_mean and Hs_max
+    resampled_data['Hs_mean'] = np.log(resampled_data['Hs_mean'])
+    resampled_data['Hs_max'] = np.log(resampled_data['Hs_max'])
+
+    # now interpolate the missing values per transect
+    # resampled_data.loc[:,'shoreline'] = resampled_data.groupby('Transect')['shoreline'].apply(lambda x: x.interpolate(method='linear')).values
+
+    return resampled_data
 
 ################################################################################
 ################################################################################

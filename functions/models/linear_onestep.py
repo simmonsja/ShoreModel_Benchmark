@@ -4,8 +4,6 @@ import jax.numpy as jnp
 import numpyro
 import numpyro.distributions as dist
 
-from functions.gp_model import GPModel
-
 ################################################################################
 ################################################################################
 # Models
@@ -113,7 +111,6 @@ def build_shladj_linear_model():
             dshl: observed shoreline change
         '''
         # Counts
-        vars_num = X.shape[1]
         tran_num = X.shape[1]
         n_months = 12
 

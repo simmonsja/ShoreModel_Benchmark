@@ -1,5 +1,3 @@
-import pickle
-
 # NumPyro for proabilistic programming
 import jax
 from jax import random
@@ -202,130 +200,9 @@ class NumPyroSampler():
             # 'hpdi_sim_test': hpdi_sim_test
         }
         self.results = results
-
-    ############################################################
-    ############################################################
         
-    def run_sampler_SVI(self,rng_key,num_samples,num_chains,step_size=0.01,extract_vars=None):
-        '''
-        Trains the model with the given input and output data.
-
-        Args:
-            rng_key (object): The random number generator key.
-            X (jnp.array): The input data.
-            Y (jnp.array): The output data.
-            num_samples (int): The number of samples to draw from the posterior.
-            num_warmup (int): The number of warmup steps before sampling.
-            num_chains (int): The number of Markov chains to run in parallel.
-            max_tree (int): The maximum tree depth for the NUTS sampler.
-        '''
-        rng, _ = jax.random.split(rng_key)
-        elbo = Trace_ELBO(num_particles=num_chains)
-        step_size = step_size
-        optimizer = numpyro.optim.ClippedAdam(step_size=step_size, clip_norm=10.0)
-        #Clipped,clip_norm=10.0)
-
-        guide = AutoNormal(self.model)
-        svi = SVI(
-            model=self.model, guide=guide, optim=optimizer, loss=elbo,  
-            X = self.train_X, add = self.train_add, Y = self.train_Y
-        )
-
-        svi_result = svi.run(rng_key, num_samples)
-
-        self.params = svi_result.params
-        self.losses = svi_result.losses
-        self.guide = guide
-
-        # SVI get samples using the guide
-        predictive = Predictive(
-            guide,
-            params=self.params,
-            num_samples=num_samples
-        )
-        samples = predictive(rng,
-            X = self.train_X, add = self.train_add, Y = None
-        )
-        posterior_predictive = Predictive(
-            self.model, posterior_samples=samples, 
-            return_sites=extract_vars
-        )(
-            rng, 
-            X = self.train_X, add = self.train_add, Y = None
-        )
-
-        self.samples = samples
-
-        self.arviz = az.from_dict(
-            {k: jnp.expand_dims(v, 0) for k, v in samples.items()},
-            posterior_predictive={k: jnp.expand_dims(v, 0) for k, v in posterior_predictive.items()},
-        )
-
-        mean_mu_train, hpdi_mu_train, hpdi_sim_train = calc_mean_hpdi(
-            self.arviz, ci=self.ci, y_scaler=None, mu_var='mu', sim_var='obs'
-        )
-    
-        results = {
-            'mean_mu_train': mean_mu_train,
-            'hpdi_mu_train': hpdi_mu_train,
-            'hpdi_sim_train': hpdi_sim_train,
-            # 'mean_mu_test': mean_mu_test,
-            # 'hpdi_mu_test': hpdi_mu_test,
-            # 'hpdi_sim_test': hpdi_sim_test
-        }
-        self.results = results
-
-
-    ############################################################
-    ############################################################
-    
-    def predict_forward(self, rng_key, extract_vars=None):
-        '''
-        Predicts the output for the given input data - training and test data.
-        '''
-
-        posterior_predictive = Predictive(
-            self.model, posterior_samples=self.samples, 
-            return_sites=extract_vars
-        )(
-            rng_key, 
-            X = self.train_X, add = self.train_add, Y = None, test = True
-        )
-        predictive_arviz = az.from_dict(
-            posterior_predictive={k: jnp.expand_dims(v, 0) for k, v in posterior_predictive.items()}
-        )
-
-        mean_mu_train, hpdi_mu_train, hpdi_sim_train = calc_mean_hpdi(
-            predictive_arviz, ci=self.ci, y_scaler=self.yScaler, mu_var='mu', sim_var='obs'
-        )
-
-        posterior_predictive = Predictive(
-            self.model, posterior_samples=self.samples, 
-            return_sites=extract_vars
-        )(
-            rng_key, 
-            X = self.test_X, add = self.test_add, Y = None, test = True
-        )
-        predictive_arviz = az.from_dict(
-            posterior_predictive={k: jnp.expand_dims(v, 0) for k, v in posterior_predictive.items()}
-        )
-
-        mean_mu_test, hpdi_mu_test, hpdi_sim_test = calc_mean_hpdi(
-            predictive_arviz, ci=self.ci, y_scaler=self.yScaler, mu_var='mu', sim_var='obs'
-        )
-
-        results = {
-            'mean_mu': mean_mu_train,
-            'hpdi_mu': hpdi_mu_train,
-            'hpdi_sim': hpdi_sim_train,
-            'mean_mu_test': mean_mu_test,
-            'hpdi_mu_test': hpdi_mu_test,
-            'hpdi_sim_test': hpdi_sim_test
-        }
-        return results
-
-    ############################################################
-    ############################################################    
+################################################################################
+################################################################################
 
 def calc_mean_hpdi(arviz_post, ci=0.89, y_scaler=None, mu_var='mu', sim_var='obs'):
     """
